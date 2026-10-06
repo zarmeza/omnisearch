@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  unit:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '4.0'
+          bundler-cache: true
+      - run: bundle exec rake
+
+  lint:
+    name: RuboCop
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '4.0'
+          bundler-cache: true
+      - run: bundle exec rubocop --parallel
+
+  build:
+    name: Build gem
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '4.0'
+          bundler-cache: true
+      - run: gem build omnisearch.gemspec
+
+  # The claim an engine has to earn is that it works *mounted inside a host app*,
+  # so this job builds a real Rails app around the gem and drives it through the
+  # host's own routing and middleware.
+  #
+  # The dummy app lives inside this repository at ./dummy, and depends on the gem
+  # by relative path — so the checkout is already the host's neighbour and no
+  # path juggling is needed.
+  integration:
+    name: Mounted in a host app
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '4.0'
+          bundler-cache: true
+          working-directory: dummy
+
+      - name: Confirm the gem resolves to this checkout
+        working-directory: dummy
+        run: bundle info omnisearch --path
+
+      - name: Integration tests
+        working-directory: dummy
+        run: bundle exec rails test

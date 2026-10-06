@@ -1,0 +1,23 @@
+*.gem
+/coverage/
+/.bundle/
+Gemfile.lock
+
+# The dummy host app's bundle is its own; the gem's Gemfile.lock does not
+# cover it.
+/dummy/Gemfile.lock
+/dummy/tmp/
+/dummy/log/
+/dummy/storage/
+/dummy/.env
+/dummy/db/*.sqlite3
+/dummy/db/*.sqlite3-*
+/dummy/public/assets/
+
+# Rails credentials, even in a fixture app. The dummy uses no encrypted
+# secrets, so nothing depends on these files existing.
+/dummy/config/master.key
+/dummy/config/credentials.yml.enc
+
+# Rails credentials must never be committed, even in a fixture app.
+/dummy/config/master.key

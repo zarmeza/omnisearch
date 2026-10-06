@@ -1,0 +1,43 @@
+AllCops:
+  NewCops: enable
+  TargetRubyVersion: 3.3
+  SuggestExtensions: false
+  # The dummy host app is a `rails new` skeleton, generated code that exists
+  # only to be mounted into. Linting it would be auditing Rails' own output.
+  Exclude:
+    - 'dummy/**/*'
+
+Gemspec/DevelopmentDependencies:
+  Enabled: false
+
+# A Rails engine's whole point is host compatibility, so an unambiguous
+# `namespace` is part of the public contract.
+Style/Documentation:
+  Enabled: false
+
+# `name` is a DSL on Omnisearch::Provider that shadows Class#name, which is
+# confusing to read. The alias is deliberate and documented at the definition.
+Naming/MethodName:
+  Exclude:
+    - lib/omnisearch/provider.rb
+
+Metrics/BlockLength:
+  Exclude:
+    - test/**/*
+
+# `lib/omnisearch.rb` is the gem's entry point: the module, its two errors and
+# the module-level config API. Splitting that across files would mean requiring
+# a config file to get a config API.
+Style/OneClassPerFile:
+  Exclude:
+    - lib/omnisearch.rb
+
+# Tests read better as a single linear narrative than split across helpers, and
+# the handful that run a couple of lines over are short enough to scan.
+Metrics/MethodLength:
+  Max: 15
+
+# A gemspec is a declaration block; splitting it defeats the point.
+Metrics/BlockLength:
+  Exclude:
+    - '*.gemspec'
