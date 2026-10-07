@@ -3,24 +3,25 @@
 module Omnisearch
   # A search request and its results.
   #
-  # `engine` is a provider name, or "both"/"all" to run every registered
-  # provider and merge the results. Validation happens here rather than in a
-  # model class so the engine works in any host, ActiveModel or not.
+  # `engine` selects which providers run. It accepts a provider name, a list of
+  # them, or "all" for every registered one — see Omnisearch::EngineSelection,
+  # which owns that rule. Validation happens here rather than in a model class so
+  # the engine works in any host, ActiveModel or not.
   #
   #   query = Omnisearch::Query.new(engine: 'google', text: 'rails')
   #   query.valid?              #=> true
   #   query.results             #=> { query:, status:, status_by_provider:, results: }
   class Query
-    ALL = %w[both all].freeze
-
+    # `engine` reads back as the normalized Array of names, whatever was passed
+    # in — same rule as `error_messages`, which is always an array too.
     attr_reader :engine, :text, :errors
 
     def initialize(engine:, text:, config: nil, cache: nil, registry: nil)
-      @engine = engine.to_s
+      @selection = EngineSelection.new(engine, registry: registry)
+      @engine = @selection.names
       @text = text.to_s
       @config = config
       @cache = cache
-      @registry = registry
       @errors = {}
       validate
     end
@@ -42,26 +43,20 @@ module Omnisearch
       }
     end
 
-    # Names this query will actually run. Useful for a host app rendering
-    # checkboxes, and for `results` to know what "both" means.
+    # What this query will actually run, in the order it will run them.
+    #
+    # Differs from `engine` in exactly one case: `engine` is `[:all]` where this
+    # is `[:google, :bing]`. Everywhere else they are the same array.
     def providers
-      return registry.names if ALL.include?(engine)
-
-      [engine]
+      @selection.providers
     end
 
     private
 
     def validate
-      unless provider_name_valid?
-        @errors[:engine] = "#{engine.inspect} is not a registered provider. " \
-                           "Available: #{registry.names.inspect}"
-      end
+      error = @selection.error
+      @errors[:engine] = error if error
       @errors[:text] = 'is required' if text.strip.empty?
-    end
-
-    def provider_name_valid?
-      ALL.include?(engine) || registry.registered?(engine)
     end
 
     def provider_results
@@ -92,7 +87,9 @@ module Omnisearch
     end
 
     # Merges every provider's results, dropping duplicates by link so a page
-    # ranked by both engines appears once.
+    # ranked by both engines appears once. When several providers return the same
+    # link, the first one in `providers` order wins — so a caller that lists
+    # providers explicitly controls which one it gets.
     def aggregate_results(responses)
       responses.flat_map { |response| response[:data] }
                .uniq { |result| result[:link] }

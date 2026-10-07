@@ -51,7 +51,7 @@ GET /search/search?engine=google&text=ruby
 
 ## Design decisions
 
-These are the four choices that shape everything else. Each was a judgement
+These are the five choices that shape everything else. Each was a judgement
 call rather than a default, so they are worth stating outright.
 
 ### The host configures the cache, not the engine
@@ -115,9 +115,36 @@ This is also why `Omnisearch::Provider.available?` exists. Google without
 credentials reports itself `:unavailable` rather than raising, so a
 half-configured install still serves Bing.
 
-### `engine: "both"` means every *registered* provider
+### `engine` takes a provider, a list, or `"all"`
 
-Not a hardcoded list of two. Register a third provider and `both` picks it up.
+```
+GET /search/search?engine=google&text=ruby
+GET /search/search?engine=google,bing&text=ruby
+GET /search/search?engine=all&text=ruby
+```
+
+`"all"` means every *registered* provider, not a hardcoded list of two. Register a
+third provider and `all` picks it up with no change to the engine.
+
+A list is explicit about which providers run and in what order. Comma-separated
+and Rails' `engine[]=` form both work:
+
+```
+GET /search/search?engine=google,bing&text=ruby
+GET /search/search?engine[]=google&engine[]=bing&text=ruby
+```
+
+In Ruby, pass an Array:
+
+```ruby
+Omnisearch.search(engine: %w[google bing], text: "ruby")
+```
+
+Order matters where it can. A list is all-or-nothing — naming one unknown
+provider returns `422` and searches nothing, rather than silently searching the
+subset it recognized. And when two providers return the same link, the first one
+in the list wins, so a caller that cares which provider a result came from can
+say so by ordering.
 
 ## Response shape
 
@@ -150,6 +177,11 @@ response contract carried over unchanged:
 GET /search?engine=google|bing|both&text=...
 ```
 
+One request changed: `engine=both` is now `engine=all`. The wildcard itself was
+never a hardcoded pair — it already meant every registered provider — but the
+name was left over from when Google and Bing were the only two. If you are
+carrying a caller over from `omnisearch-rails`, change that one word.
+
 What differs is the packaging. The old app was a server you ran; this is a gem you
 mount into a server you already have.
 
@@ -177,6 +209,15 @@ Omnisearch.search(engine: "bing", text: "ruby")
 # => { query: "ruby", status: :ok, status_by_provider: [...], results: [...] }
 ```
 
+A host app that wants to know which providers are registered, or to render
+checkboxes, can read that off a selection directly:
+
+```ruby
+Omnisearch::EngineSelection.new("all").providers   #=> [:google, :bing]
+Omnisearch::EngineSelection.new("google,nope").error
+#=> ":nope is not a registered provider. Available: [:google, :bing]"
+```
+
 ## Development
 
 ```console
@@ -185,7 +226,7 @@ $ bundle exec rake       # tests + coverage
 $ bundle exec rubocop
 ```
 
-Ruby 3.3+, Rails 7.2+. 43 tests, 96% line coverage.
+Ruby 3.3+, Rails 7.2+. 74 tests, 97% line coverage.
 
 Tests never touch the network — WebMock is enabled with `disable_net_connect!`,
 so a test that forgets to stub an HTTP call fails loudly rather than reaching
@@ -200,7 +241,7 @@ the repository carries a host app that exists only to test that claim:
 ```console
 $ cd dummy                   # a minimal Rails app with the gem mounted
 $ bundle install
-$ bundle exec rails test      # 11 integration tests through the full stack
+$ bundle exec rails test      # 15 integration tests through the full stack
 ```
 
 Those tests go through the host's real routing and middleware, so a mistake in

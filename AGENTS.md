@@ -50,10 +50,11 @@ lib/omnisearch/
   errors.rb             Misconfigured, ProviderNotRegistered
   registry.rb           name => provider class, idempotent by name
   provider.rb           base class; the four-method provider contract
+  engine_selection.rb   engine param => validated, ordered provider list
   providers/
     google_provider.rb  Custom Search JSON API
     bing_provider.rb    HTML scraping, no API key
-  query.rb              validation, per-provider status, dedup by link
+  query.rb              per-provider status, dedup by link, orchestration
   cache.rb              failure-tolerant adapter over Rails.cache
   configuration.rb      Omnisearch.configure
   engine.rb             the Rails::Engine subclass
@@ -62,7 +63,7 @@ lib/omnisearch/
 config/routes.rb        engine routes: GET /search, root
 app/                    the controller
 dummy/                  a minimal Rails app that exists only to be mounted into
-test/                   43 unit tests
+test/                   74 unit tests
 ```
 
 ## Commands
@@ -71,7 +72,7 @@ test/                   43 unit tests
 $ bundle install
 $ bundle exec rake        # tests + coverage
 $ bundle exec rubocop
-$ cd dummy && bundle exec rails test    # 11 integration tests
+$ cd dummy && bundle exec rails test    # 15 integration tests
 ```
 
 ## Conventions
@@ -93,6 +94,16 @@ Bing.
 **Tests never touch the network.** WebMock with `disable_net_connect!` is
 enabled suite-wide, so a test that forgets to stub fails loudly instead of
 quietly reaching Google.
+
+**The controller passes `params[:engine]` through untouched.** Normalization
+happens in `EngineSelection`, so the Ruby API and the HTTP endpoint accept
+exactly the same shapes. A Rails integration test is the only way to check a
+wire-format claim like `engine[]=`, because the unit tests bypass Rails'
+param parsing entirely.
+
+**Invalid parameters are 422 and search nothing.** A list naming one unknown
+provider fails the whole list rather than searching the recognized subset. A
+caller who asked for two engines and silently got one cannot tell.
 
 **`dummy/` is generated Rails output.** It is excluded from RuboCop on purpose.
 Editing generated scaffolding to satisfy a linter is not worth the diff.

@@ -47,3 +47,12 @@ Metrics/BlockLength:
   Exclude:
     - '*.gemspec'
     - 'test/**/*'
+
+# Same reasoning as Metrics/BlockLength above, for the same reason. A test class
+# is a list of independent cases; there is no shared behaviour to extract, and
+# the cases are easier to read in one place than to hunt across files. Splitting
+# is still right when a file has stopped being about one thing — which is why
+# test_engine_selection.rb exists rather than the list tests being appended here.
+Metrics/ClassLength:
+  Exclude:
+    - 'test/**/*'

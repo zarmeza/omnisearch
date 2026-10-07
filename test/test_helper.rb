@@ -41,6 +41,20 @@ class OmnisearchTest < Minitest::Test
     ]
   }.freeze
 
+  # A third provider, for tests that need to prove `all` means the registry
+  # rather than a hardcoded pair. Registered per-test, never globally.
+  class ThirdProvider < Omnisearch::Provider
+    name :third
+
+    def self.request_url(query, _config = Omnisearch.config)
+      "https://third.test/search?q=#{query}"
+    end
+
+    def self.parse_response(body) = JSON.parse(body)
+
+    def self.map_results(data) = [{ title: data['title'], link: data['link'] }]
+  end
+
   BING_OK = <<~HTML
     <html><body>
       <li class="b_algo"><h2><a href="https://example.org/omnisearch">Omnisearch</a></h2></li>
