@@ -15,6 +15,9 @@ Gem::Specification.new do |spec|
     add its own without changing the engine. Caching uses whatever Rails.cache is
     already configured as, and a cache outage degrades to no caching rather than
     failing the request.
+
+    Successor to the archived https://github.com/zarmeza/omnisearch-rails, whose
+    request and response contract this gem preserves.
   DESC
   spec.homepage    = 'https://github.com/zarmeza/omnisearch'
   spec.license     = 'MIT'

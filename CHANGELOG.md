@@ -30,3 +30,9 @@ Initial release.
 - Provider failures never raise. They are reported per provider in
   `status_by_provider`, so one bad API key cannot take down a search that another
   engine could answer.
+- This gem succeeds the archived
+  [`zarmeza/omnisearch-rails`](https://github.com/zarmeza/omnisearch-rails).
+  Its request and response contract carries over unchanged; only the packaging
+  does, from a standalone Rails API app to a mountable engine. The cache is the
+  notable difference — the host's `Rails.cache` is used as-is, so there is no
+  second database to prepare.
