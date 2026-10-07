@@ -6,10 +6,17 @@ Mount it in a Rails app and get a `/search` endpoint backed by Google, Bing, or
 anything else you register. Built for the case where more than one app needs
 search and the provider parsing should not be written twice.
 
+**Not on RubyGems yet.** Install from the repository:
+
 ```ruby
 # Gemfile
-gem "omnisearch"
+gem "omnisearch", github: "zarmeza/omnisearch"
 ```
+
+If a bare `gem "omnisearch"` resolves, that is a different gem — do not use it.
+
+The `0.1.0` version and CHANGELOG entry describe a planned release, not a
+download. Nothing is on RubyGems yet.
 
 ```ruby
 # config/initializers/omnisearch.rb
@@ -149,7 +156,7 @@ mount into a server you already have.
 | | omnisearch-rails | omnisearch |
 |---|---|---|
 | Shape | Standalone Rails API app | Mountable engine |
-| Install | `bundle install`, run it | `gem "omnisearch"`, `mount Omnisearch::Engine => "/search"` |
+| Install | `bundle install`, run it | add the gem to your Gemfile, `mount Omnisearch::Engine => "/search"` |
 | Cache | Own Solid Cache database | Whatever the host already uses for `Rails.cache` |
 | Providers | Google, Bing | Google, Bing, plus anything you register |
 | Endpoint | `/search` | wherever you mount it |

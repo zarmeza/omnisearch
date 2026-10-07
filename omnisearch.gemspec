@@ -16,6 +16,9 @@ Gem::Specification.new do |spec|
     already configured as, and a cache outage degrades to no caching rather than
     failing the request.
 
+    Not yet published to RubyGems. Install from GitHub:
+      gem "omnisearch", github: "zarmeza/omnisearch"
+
     Successor to the archived https://github.com/zarmeza/omnisearch-rails, whose
     request and response contract this gem preserves.
   DESC
