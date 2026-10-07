@@ -2,9 +2,17 @@ AllCops:
   NewCops: enable
   TargetRubyVersion: 3.3
   SuggestExtensions: false
-  # The dummy host app is a `rails new` skeleton, generated code that exists
-  # only to be mounted into. Linting it would be auditing Rails' own output.
+  # Setting `Exclude` here *replaces* RuboCop's default list rather than
+  # merging with it, so these have to be restated or RuboCop walks into
+  # vendored gem sources and loads their own configs — which is how CI ended
+  # up trying to require `rubocop-rspec` out of hashdiff's .rubocop.yml.
   Exclude:
+    - 'node_modules/**/*'
+    - 'tmp/**/*'
+    - 'vendor/**/*'
+    - '.git/**/*'
+    # The dummy host app is a `rails new` skeleton, generated code that exists
+    # only to be mounted into. Linting it would be auditing Rails' own output.
     - 'dummy/**/*'
 
 Gemspec/DevelopmentDependencies:
@@ -21,10 +29,6 @@ Naming/MethodName:
   Exclude:
     - lib/omnisearch/provider.rb
 
-Metrics/BlockLength:
-  Exclude:
-    - test/**/*
-
 # `lib/omnisearch.rb` is the gem's entry point: the module, its two errors and
 # the module-level config API. Splitting that across files would mean requiring
 # a config file to get a config API.
@@ -37,7 +41,9 @@ Style/OneClassPerFile:
 Metrics/MethodLength:
   Max: 15
 
-# A gemspec is a declaration block; splitting it defeats the point.
+# A gemspec is a declaration block; splitting it defeats the point. Tests read
+# better as one linear narrative than split across helpers.
 Metrics/BlockLength:
   Exclude:
     - '*.gemspec'
+    - 'test/**/*'
