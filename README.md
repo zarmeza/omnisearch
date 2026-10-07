@@ -133,6 +133,34 @@ Invalid parameters return `422` with `{"errors": {"engine": "...", "text": "..."
 Bing needs no API key, which makes it the one engine that works the moment you
 install the gem.
 
+## Migrating from omnisearch-rails
+
+This gem grew out of [`zarmeza/omnisearch-rails`](https://github.com/zarmeza/omnisearch-rails),
+a standalone Rails API application. That repository is archived. The request and
+response contract carried over unchanged:
+
+```
+GET /search?engine=google|bing|both&text=...
+```
+
+What differs is the packaging. The old app was a server you ran; this is a gem you
+mount into a server you already have.
+
+| | omnisearch-rails | omnisearch |
+|---|---|---|
+| Shape | Standalone Rails API app | Mountable engine |
+| Install | `bundle install`, run it | `gem "omnisearch"`, `mount Omnisearch::Engine => "/search"` |
+| Cache | Own Solid Cache database | Whatever the host already uses for `Rails.cache` |
+| Providers | Google, Bing | Google, Bing, plus anything you register |
+| Endpoint | `/search` | wherever you mount it |
+
+The cache is the change most likely to surprise. The old app owned a
+`db/cache_development.sqlite3` and needed `bin/prepare-cache`. The engine does
+not: it reads `Rails.cache` and never calls `config.cache_store`, so there is
+nothing to prepare and no second database to keep alive. The graceful-degradation
+behaviour carried over — a cache outage still costs you performance, never
+availability.
+
 ## Using it without HTTP
 
 The engine is a plain Ruby object graph; the Rails parts are additive.
@@ -163,7 +191,7 @@ An engine that works in isolation and breaks when mounted is not an engine, so
 the repository carries a host app that exists only to test that claim:
 
 ```console
-$ cd ../omnisearch_dummy      # a minimal Rails app with the gem mounted
+$ cd dummy                   # a minimal Rails app with the gem mounted
 $ bundle install
 $ bundle exec rails test      # 11 integration tests through the full stack
 ```
