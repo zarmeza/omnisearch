@@ -72,6 +72,63 @@ class Omnisearch::SearchFlowTest < ActionDispatch::IntegrationTest
     assert_match(/not a registered provider/, response.parsed_body['errors']['engine'])
   end
 
+  test 'a comma-separated list of engines searches all of them' do
+    stub_request(:get, /customsearch/).to_return(status: 200, body: GOOGLE_BODY)
+    stub_request(:get, /bing\.com/).to_return(status: 200, body: BING_BODY)
+
+    get '/search/search', params: { engine: 'google,bing', text: 'rails' }
+
+    assert_response :success
+    assert_equal %w[google bing], response.parsed_body['status_by_provider'].map { |p| p['provider'] }
+  end
+
+  test "Rails' array param form is accepted too" do
+    # engine[]=google&engine[]=bing — Rails parses this into an Array, which is a
+    # shape the unit tests never see because they call Query directly.
+    stub_request(:get, /customsearch/).to_return(status: 200, body: GOOGLE_BODY)
+    stub_request(:get, /bing\.com/).to_return(status: 200, body: BING_BODY)
+
+    get '/search/search', params: { engine: %w[google bing], text: 'rails' }
+
+    assert_response :success
+    assert_equal %w[google bing], response.parsed_body['status_by_provider'].map { |p| p['provider'] }
+  end
+
+  test 'engine=all searches every registered provider, including the host own' do
+    host_provider = Class.new(Omnisearch::Provider) do
+      def self.name(value = nil)
+        @name = value.to_sym if value
+        @name || :host_owned
+      end
+
+      def self.request_url(query, _config = Omnisearch.config) = "https://host.test/search?q=#{query}"
+      def self.parse_response(body) = JSON.parse(body)
+      def self.map_results(data) = [{ title: data['title'], link: data['url'] }]
+    end
+
+    stub_request(:get, /customsearch/).to_return(status: 200, body: GOOGLE_BODY)
+    stub_request(:get, /bing\.com/).to_return(status: 200, body: BING_BODY)
+    stub_request(:get, /host\.test/).to_return(status: 200, body: GOOGLE_BODY.to_json)
+
+    Omnisearch.register(host_provider)
+
+    get '/search/search', params: { engine: 'all', text: 'rails' }
+
+    assert_response :success
+    assert_equal %w[google bing host_owned],
+                 response.parsed_body['status_by_provider'].map { |p| p['provider'] }
+  end
+
+  test 'a list naming an unknown engine returns 422 and searches nothing' do
+    stub_request(:get, /customsearch/).to_return(status: 200, body: GOOGLE_BODY)
+
+    get '/search/search', params: { engine: 'google,altavista', text: 'rails' }
+
+    assert_response :unprocessable_entity
+    assert_match(/altavista/, response.parsed_body['errors']['engine'])
+    assert_not_requested :get, /customsearch/
+  end
+
   test 'the bare mount root also routes' do
     stub_request(:get, /bing\.com/).to_return(status: 200, body: BING_BODY)
 

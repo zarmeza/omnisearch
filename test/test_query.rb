@@ -44,7 +44,7 @@ class TestQuery < OmnisearchTest
   end
 
   def test_status_by_provider_reports_each_provider
-    results = query(engine: 'both', text: 'rails').results
+    results = query(engine: 'all', text: 'rails').results
 
     assert_equal(%i[google bing], results[:status_by_provider].map { |p| p[:provider] })
   end
@@ -55,31 +55,76 @@ class TestQuery < OmnisearchTest
     assert_equal [], results[:status_by_provider].first[:error_messages]
   end
 
-  def test_both_runs_every_registered_provider
-    assert_equal %i[google bing], query(engine: 'both', text: 'x').providers
-  end
-
-  def test_all_is_an_alias_for_both
+  def test_all_runs_every_registered_provider
     assert_equal %i[google bing], query(engine: 'all', text: 'x').providers
   end
 
+  def test_all_picks_up_a_provider_registered_after_the_gem_loaded
+    Omnisearch.register(ThirdProvider)
+
+    assert_equal %i[google bing third], query(engine: 'all', text: 'x').providers
+  end
+
+  def test_a_list_searches_every_provider_it_names
+    results = query(engine: 'google,bing', text: 'rails').results
+
+    assert_equal(%i[google bing], results[:status_by_provider].map { |p| p[:provider] })
+    assert_equal :ok, results[:status]
+  end
+
+  def test_a_list_searches_only_the_providers_it_names
+    # Not `all` in disguise: a list of one runs one provider.
+    results = query(engine: 'bing', text: 'rails').results
+
+    assert_equal(%i[bing], results[:status_by_provider].map { |p| p[:provider] })
+  end
+
+  def test_the_first_provider_in_a_list_wins_a_duplicate_link
+    duplicate_stubs
+
+    results = query(engine: 'google,bing', text: 'x').results
+
+    assert_equal 'G', results[:results].first[:title]
+  end
+
+  def test_reordering_a_list_changes_which_provider_wins_a_duplicate_link
+    duplicate_stubs
+
+    results = query(engine: 'bing,google', text: 'x').results
+
+    assert_equal 'B', results[:results].first[:title]
+  end
+
   def test_results_are_deduplicated_by_link_across_providers
-    shared = 'https://example.org/omnisearch'
-    stub_google(body: { 'items' => [{ 'title' => 'G', 'link' => shared }] }.to_json)
-    stub_bing(body: <<~HTML)
-      <html><body><li class="b_algo"><h2><a href="#{shared}">B</a></h2></li></body></html>
-    HTML
+    results = query(engine: 'all', text: 'x').results
 
-    results = query(engine: 'both', text: 'x').results
+    assert_equal 2, results[:results].size
+    assert_equal(%w[https://example.org/omnisearch https://example.org/ruby],
+                 results[:results].map { |r| r[:link] })
+  end
 
-    assert_equal 1, results[:results].size
-    assert_equal shared, results[:results].first[:link]
+  def test_an_unknown_provider_in_a_list_is_invalid
+    q = query(engine: 'google,altavista', text: 'rails')
+
+    refute q.valid?
+    assert_match(/:altavista is not a registered provider/, q.errors[:engine])
+  end
+
+  def test_a_list_does_not_search_the_providers_it_named_when_one_is_unknown
+    # All-or-nothing. A caller who asked for two engines needs to know they got
+    # one, rather than a 200 that silently dropped a provider.
+    assert_nil query(engine: 'google,altavista', text: 'rails').results
+  end
+
+  def test_engine_reader_returns_the_normalized_names
+    assert_equal %i[google bing], query(engine: ' google , bing ', text: 'x').engine
+    assert_equal %i[all], query(engine: 'all', text: 'x').engine
   end
 
   def test_a_failing_provider_does_not_stop_the_others
     stub_google(code: 403)
 
-    results = query(engine: 'both', text: 'rails').results
+    results = query(engine: 'all', text: 'rails').results
 
     assert_equal :ok, results[:status]
     google = results[:status_by_provider].find { |p| p[:provider] == :google }
@@ -92,7 +137,7 @@ class TestQuery < OmnisearchTest
     stub_google(code: 500)
     stub_bing(code: 503)
 
-    assert_equal :service_unavailable, query(engine: 'both', text: 'x').results[:status]
+    assert_equal :service_unavailable, query(engine: 'all', text: 'x').results[:status]
   end
 
   def test_an_unconfigured_provider_is_reported_as_unavailable_not_raised
@@ -107,7 +152,7 @@ class TestQuery < OmnisearchTest
 
   def test_a_provider_that_raises_is_contained
     Omnisearch::BingProvider.stub(:call, ->(*) { raise 'provider exploded' }) do
-      results = query(engine: 'both', text: 'x').results
+      results = query(engine: 'all', text: 'x').results
 
       assert_equal :ok, results[:status]
       bing = results[:status_by_provider].find { |p| p[:provider] == :bing }
@@ -117,6 +162,16 @@ class TestQuery < OmnisearchTest
   end
 
   private
+
+  # Both providers return the same single link, with distinct titles, so which
+  # one survives deduplication is observable.
+  def duplicate_stubs
+    shared = 'https://example.org/shared'
+    stub_google(body: { 'items' => [{ 'title' => 'G', 'link' => shared }] }.to_json)
+    stub_bing(body: <<~HTML)
+      <html><body><li class="b_algo"><h2><a href="#{shared}">B</a></h2></li></body></html>
+    HTML
+  end
 
   # WebMock's `to_return` validates its keys and rejects `status_message:`, and
   # HTTParty's `message` comes back empty here — which is the real-world case the
