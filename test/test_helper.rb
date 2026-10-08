@@ -6,10 +6,10 @@ require 'simplecov'
 # so the test suite does not depend on a dev-only gem.
 if defined?(SimpleCov)
   SimpleCov.start do
-    add_filter '/test/'
-    add_filter '/gems/'
+    skip '/test/'
+    skip '/gems/'
     # Runtime branches that only matter when a host app misconfigures things.
-    add_filter 'lib/omnisearch/railtie.rb'
+    skip 'lib/omnisearch/railtie.rb'
   end
 end
 

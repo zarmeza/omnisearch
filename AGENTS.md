@@ -57,14 +57,20 @@ lib/omnisearch/
   query.rb              per-provider status, dedup by link, orchestration
   cache.rb              failure-tolerant adapter over Rails.cache
   configuration.rb      Omnisearch.configure
-  engine.rb             the Rails::Engine subclass
-  controllers/
-    search_controller.rb
+  railtie.rb            defines Omnisearch::Engine, the Rails::Engine subclass
 config/routes.rb        engine routes: GET /search, root
-app/                    the controller
+app/controllers/omnisearch/search_controller.rb   the engine's controller
 dummy/                  a minimal Rails app that exists only to be mounted into
 test/                   74 unit tests
 ```
+
+`railtie.rb` holds a class named `Engine`, not `Railtie`. The file's own
+comment says why it is an Engine ("an Engine rather than a Railtie because the
+gem ships its own controller and routes") — but `git log --follow` shows the
+filename and the class disagreed from the first commit, so the mismatch is an
+unexplained naming slip, not a deliberate leftover. Either side is defensible;
+neither is currently load-bearing. Do not change one to match the other without
+asking.
 
 ## Commands
 
