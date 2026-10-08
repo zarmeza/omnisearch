@@ -5,7 +5,7 @@ Guidance for AI coding agents working in this repository.
 ## Before starting work
 
 ```console
-$ carrot-handoff load
+$ zanoria load
 ```
 
 If a note exists, work is already in progress. Follow its `Next action` and do
@@ -17,7 +17,7 @@ If there is no note, that means this is a fresh start.
 ## Before finishing
 
 ```console
-$ carrot-handoff save "<one-line task>"
+$ zanoria save "<one-line task>"
 ```
 
 Then fill in, by hand, the sections only a human or agent can know:
